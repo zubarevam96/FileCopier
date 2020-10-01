@@ -5,13 +5,16 @@
  */
 package com.zubarevam.filescopier;
 
+import com.zubarevam.filescopier.control.LoggerDispatcherSingleton;
 import com.zubarevam.filescopier.gui.SystemTrayIconSingleton;
 import java.awt.AWTException;
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.nio.file.AccessDeniedException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Date;
 import java.util.logging.FileHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -25,20 +28,7 @@ import javax.swing.*;
  */
 public class EntryPoint {
 
-    private static final Logger log = Logger.getLogger(EntryPoint.class.getName());
-    static {
-        try {
-            Path path = Paths.get(System.getenv("ProgramFiles").concat("\\zamSoft\\FilesCopier"));
-            Files.createDirectories(path);
-            System.out.println(path);
-            FileHandler fh = new FileHandler(path.toString().concat("\\logs.log"), true);
-            fh.setFormatter(new SimpleFormatter());
-            log.addHandler(fh);
-            log.info("all good");
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
+    private static final Logger log = LoggerDispatcherSingleton.INSTANCE.getLoggerWithHandler(EntryPoint.class);
 
     public static void main(String[] args) throws IOException, URISyntaxException {
         
@@ -47,7 +37,7 @@ public class EntryPoint {
             UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
             SystemTrayIconSingleton.INSTANCE.tryCreateTrayApp();
         } catch (Exception ex) {
-            log.log(Level.SEVERE, null, ex);
+            log.log(Level.SEVERE, "Error occurred while tried to create trayIcon", ex);
             JOptionPane.showMessageDialog(null, ex);
         }
     }

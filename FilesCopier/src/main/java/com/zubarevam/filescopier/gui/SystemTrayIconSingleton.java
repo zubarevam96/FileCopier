@@ -5,6 +5,7 @@
  */
 package com.zubarevam.filescopier.gui;
 
+import com.zubarevam.filescopier.control.LoggerDispatcherSingleton;
 import com.zubarevam.filescopier.control.ProgramLogicSingleton;
 import com.zubarevam.filescopier.model.PropertiesHolderSingleton;
 import java.awt.AWTException;
@@ -24,6 +25,7 @@ import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
 import java.nio.file.Paths;
 import java.util.HashMap;
+import java.util.concurrent.CancellationException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.imageio.ImageIO;
@@ -33,16 +35,16 @@ import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 
 /**
- *
+ * Class that does all the trayIcon logic and most of GUI
  * @author ZubarevAM
  */
 public enum SystemTrayIconSingleton {
     
     INSTANCE;
     
-    TrayIcon trayIcon;
-    
-    static final Logger log = Logger.getLogger(SystemTrayIconSingleton.class.getName());
+    private TrayIcon trayIcon;
+
+    private static final Logger log = LoggerDispatcherSingleton.INSTANCE.getLoggerWithHandler(SystemTrayIconSingleton.class);
     
     public SystemTrayIconSingleton getInstance() throws AWTException {
         return INSTANCE;
@@ -62,11 +64,13 @@ public enum SystemTrayIconSingleton {
         popup.add(configureMenu);
         popup.add(get.exiter());
     }
-    
-    public void tryCreateTrayApp() throws AWTException, IOException, URISyntaxException {
-        
-        if (trayIcon == null) {
-        
+
+    /**
+     * Constructs {@link SystemTrayIconSingleton#trayIcon} and adds it to System tray.
+     * @throws AWTException if {@link SystemTrayIconSingleton#trayIcon} cannot be added to System tray
+     */
+    public void tryCreateTrayApp() throws AWTException {
+
             URL url = SystemTrayIconSingleton.class.getClassLoader().getResource("resources/copyPaste.png");
             
             Image image = Toolkit.getDefaultToolkit().getImage(url);
@@ -76,10 +80,17 @@ public enum SystemTrayIconSingleton {
             fillPopupMenu(popup);
             trayIcon = new TrayIcon(image, "FilesCopier", popup);
             SystemTray.getSystemTray().add(trayIcon);
-        }
+
     }
+
+    /**
+     * Inner Class that constructs buttons for Menu panel.
+     */
     private class MenuItemsGetter {
-    
+
+        /**
+         * @return button that executes copying of files from inputDir to outputDir
+         */
         private MenuItem copyingExecutor() {
             
             MenuItem item = new MenuItem("execute");
@@ -87,18 +98,23 @@ public enum SystemTrayIconSingleton {
                 boolean isSucceeded = false;
                 try {
                     isSucceeded = ProgramLogicSingleton.INSTANCE.copyFiles();
+                } catch (CancellationException ce) {
+
                 } catch (IOException ex) {
-                    log.log(Level.SEVERE, null, ex);
                     JOptionPane.showMessageDialog(null, "Copying was failed! Watch log for details");
                 }
-                
                 if (isSucceeded) {
                     JOptionPane.showMessageDialog(null, "copying was done successfully!");
-                } 
+                } else {
+                    JOptionPane.showMessageDialog(null, "There is no files that must be copied");
+                }
             });
             return item;
         }
 
+        /**
+         * @return button that sets input's root directory
+         */
         private MenuItem inputDirectorySetter() {
             
             MenuItem item = new MenuItem("set input directory");
@@ -125,6 +141,9 @@ public enum SystemTrayIconSingleton {
             return item;
         }
 
+        /**
+         * @return button that sets output's root directory
+         */
         private MenuItem outputDirectorySetter() {
             
             MenuItem item = new MenuItem("set output directory");
@@ -150,7 +169,10 @@ public enum SystemTrayIconSingleton {
             });
             return item;
         }
-        
+
+        /**
+         * @return button that sets min age of files in hours to be copied
+         */
         private MenuItem minAgeSetter() {
             
             MenuItem item = new MenuItem("set min. file's age");
@@ -165,7 +187,7 @@ public enum SystemTrayIconSingleton {
                     previousValue = "";
                 }
                 
-                Integer currentValue = getIntOrNullFromUser(previousValue);
+                Integer currentValue = getIntOrNullFromUser(previousValue, "Set minimal age of file to copy (in hours)");
                 if (currentValue != null) {
                     try {
                         props.setProperty(PropertiesHolderSingleton.MIN_TIME_TO_REWRITE_IN_HOURS,
@@ -178,7 +200,10 @@ public enum SystemTrayIconSingleton {
             });
             return item;
         }
-        
+
+        /**
+         * @return button that opens properties and logs files for this app in explorer
+         */
         private MenuItem configOpener() {
             
             MenuItem item = new MenuItem("open in explorer");
@@ -186,12 +211,15 @@ public enum SystemTrayIconSingleton {
                 try {
                     Runtime.getRuntime().exec("explorer.exe /select," + PropertiesHolderSingleton.INSTANCE.getPropertiesPath());
                 } catch (IOException ex) {
-                    log.log(Level.SEVERE, null, ex);
+                    log.log(Level.SEVERE, "failed to open config file in Explorer", ex);
                 }
             });
             return item;
         }
 
+        /**
+         * @return button that closes this app
+         */
         private MenuItem exiter() {
             MenuItem item = new MenuItem("exit");
             item.addActionListener(e -> {
@@ -200,7 +228,12 @@ public enum SystemTrayIconSingleton {
             });
             return item;
         }
-        
+
+        /**
+         * gets directory from user with {@link JFileChooser}.
+         * @param initialPath path for {@link JFileChooser#setCurrentDirectory}
+         * @return path that was chosen by user
+         */
         private String chooseDirectoryPath(String initialPath) throws IOException {
             
             JFileChooser chooser = new JFileChooser();
@@ -221,12 +254,14 @@ public enum SystemTrayIconSingleton {
                 throw new IOException("File wasn't chosen");
             }
         }
-        
-        private Integer getIntOrNullFromUser(String initialValue) {
-            
-            return getIntOrNullFromUser(initialValue, "Set minimal age of file to copy (in hours)");
-        }
-        
+
+
+        /** Shows JOptionPane#showInputDialog waits an integer value from user
+         * @param initialValue message inside input field of {@link JOptionPane}
+         * @param initialMessage message in head of {@link JOptionPane}
+         * @return Integer value from user or null if user returned empty string
+         * @see JOptionPane#showInputDialog(Object, Object)
+         */
         private Integer getIntOrNullFromUser(String initialValue, String initialMessage) {
             
             String userInput = JOptionPane.showInputDialog(initialMessage,
