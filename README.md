@@ -1,5 +1,5 @@
 # FileCopier
-FileCopier is a simple program for Windows that helps when you need to (re)place some recently updated files from one directory and it's subdirectories to another for many times. Old files will be backuped.
+FileCopier is a simple program for Windows written in java (with jdk14) that helps when you need to (re)place some recently updated files from one directory and it's subdirectories to another for many times. Old files will be backuped.
 # What does it do
 When launched, There are TrayIcon appears in your SystemTray: ![there must be the program tray icon, but something gone wrong :(](./FilesCopier/src/main/images/copyPaste.png). Upon right-clicking on it, there are few menu buttons:
 - execute. Checks inputDirectory and it's subdirectories recursively for recently updated files and, if there are some, puts it to outputfolder with exact relative path;
